@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+
+  scylla:
+    image: scylladb/scylla:5.1
+    ports:
+      - "9042:9042"
+    volumes:
+      - scylla-data:/var/lib/scylla
+    command: >
+      --smp 1
+      --memory 750M
+      --overprovisioned 1
+      --api-address 0.0.0.0
+      --developer-mode 1
+      --experimental 1
+      --broadcast-address scylla
+      --broadcast-rpc-address scylla
+      --listen-address 0.0.0.0
+      --rpc-address 0.0.0.0
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status | grep -q 'UN' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  webapp:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - scylla 
+    environment:
+      - SCYLLA_HOST=scylla
+      - SCYLLA_PORT=9042
+    networks:
+      - test-network
+
+
+volumes:
+  scylla-data:
+
+networks:
+  test-network:
+    driver: bridge
